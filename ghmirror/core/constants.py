@@ -17,5 +17,6 @@ System constants.
 """
 
 GH_API = 'https://api.github.com'
+OAUTH_ENDPOINT = 'https://github.com'
 REQUESTS_TIMEOUT = 10
 STATUS_TIMEOUT = 2

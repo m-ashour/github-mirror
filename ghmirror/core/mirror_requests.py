@@ -156,3 +156,23 @@ def offline_request(method, url, auth, error_code=504,
     # pylint: disable=protected-access
     response._content = error_message
     return response
+
+
+def pass_thru_request(method, url, auth, cookies, data=None):
+    """
+    Implements conditional requests.
+    """
+    headers = {}
+    if auth is not None:
+        headers['Authorization'] = auth
+
+    # Just forward the request with the auth header
+    resp = requests.request(method=method,
+                            url=url,
+                            headers=headers,
+                            data=data,
+                            cookies=cookies,
+                            timeout=REQUESTS_TIMEOUT)
+
+    LOG.info('OAUTH %s %s', method, url)
+    return resp

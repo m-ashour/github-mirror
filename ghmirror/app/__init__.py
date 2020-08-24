@@ -25,8 +25,10 @@ import flask
 from prometheus_client import generate_latest
 
 from ghmirror.core.constants import GH_API
+from ghmirror.core.constants import OAUTH_ENDPOINT
 from ghmirror.core.mirror_response import MirrorResponse
 from ghmirror.core.mirror_requests import conditional_request
+from ghmirror.core.mirror_requests import pass_thru_request
 from ghmirror.data_structures.monostate import StatsCache
 from ghmirror.data_structures.requests_cache import RequestsCache
 from ghmirror.decorators.checks import check_user
@@ -47,7 +49,65 @@ def error_handler(exception):
 
 
 APP.config['TRAP_HTTP_EXCEPTIONS'] = True
-APP.register_error_handler(Exception, error_handler)
+# APP.register_error_handler(Exception, error_handler)
+
+
+@APP.route('/login/<path:path>', methods=["GET", "POST"])
+def oauth(path):
+    """
+    Oauth endpoint
+    """
+    url = f'{OAUTH_ENDPOINT}/login/{path}'
+
+    if flask.request.args:
+        url += '?'
+        for key, value in flask.request.args.items():
+            url += f'{key}={value}&'
+        url = url.rstrip('&')
+
+    resp = pass_thru_request(method=flask.request.method,
+                             url=url,
+                             auth=flask.request.headers.get('Authorization'),
+                             cookies=flask.request.cookies,
+                             data=flask.request.data)
+
+    gh_mirror_url = os.environ.get('GITHUB_MIRROR_URL', flask.request.host_url)
+    mirror_response = MirrorResponse(original_response=resp,
+                                     gh_api_url=GH_API,
+                                     gh_mirror_url=gh_mirror_url)
+
+    return flask.Response(mirror_response.content,
+                          mirror_response.status_code,
+                          mirror_response.headers)
+
+
+@APP.route('/session', methods=["GET", "POST"])
+def session():
+    """
+    Oauth endpoint
+    """
+    url = f'{OAUTH_ENDPOINT}/session'
+
+    if flask.request.args:
+        url += '?'
+        for key, value in flask.request.args.items():
+            url += f'{key}={value}&'
+        url = url.rstrip('&')
+
+    resp = pass_thru_request(method=flask.request.method,
+                             url=url,
+                             auth=flask.request.headers.get('Authorization'),
+                             cookies=flask.request.cookies,
+                             data=flask.request.data)
+
+    gh_mirror_url = os.environ.get('GITHUB_MIRROR_URL', flask.request.host_url)
+    mirror_response = MirrorResponse(original_response=resp,
+                                     gh_api_url=GH_API,
+                                     gh_mirror_url=gh_mirror_url)
+
+    return flask.Response(mirror_response.content,
+                          mirror_response.status_code,
+                          mirror_response.headers)
 
 
 @APP.route('/healthz', methods=["GET"])
@@ -106,4 +166,4 @@ def ghmirror(path):
 
 
 if __name__ == '__main__':  # pragma: no cover
-    APP.run(host='127.0.0.1', debug=True, port='8080')
+    APP.run(host='127.0.0.1', debug=True, port='8080', ssl_context='adhoc')
